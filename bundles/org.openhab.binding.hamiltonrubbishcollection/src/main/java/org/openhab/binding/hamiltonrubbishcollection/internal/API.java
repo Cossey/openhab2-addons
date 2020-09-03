@@ -63,36 +63,45 @@ public class API {
             logger.debug("Fetching data from API at {}", url);
 
             ContentResponse response = httpClient.GET(url);
-            String content = response.getContentAsString().trim();
-            StringBuffer contentfixed = new StringBuffer(content); 
-            logger.trace("Got content: {}", contentfixed);
-            contentfixed.delete(content.length() - 1, content.length()); 
-            contentfixed.delete(0, 1); 
 
-            logger.trace("Parsed content into valid json: {}", contentfixed.toString());
+            if (response.getStatus() == 200) {
+                String content = response.getContentAsString().trim();
+                StringBuffer contentfixed = new StringBuffer(content);
+                logger.trace("Got content: {}", contentfixed);
+                contentfixed.delete(content.length() - 1, content.length());
+                contentfixed.delete(0, 1);
 
-            JsonObject jsonObject = new JsonParser().parse(contentfixed.toString()).getAsJsonObject();
-            
-            JsonElement redbinobj = jsonObject.get("RedBin");
-            if (redbinobj == null) {
-                logger.debug("The content did not have the expected RedBin field, assuming invalid premises or address");
+                logger.trace("Parsed content into valid json: {}", contentfixed.toString());
 
-                errDetail = ThingStatusDetail.CONFIGURATION_ERROR;
-                errMsg = "The premises or address is not valid or has rubbish collection available.";
+                JsonObject jsonObject = new JsonParser().parse(contentfixed.toString()).getAsJsonObject();
+
+                JsonElement redbinobj = jsonObject.get("RedBin");
+                if (redbinobj == null) {
+                    logger.debug(
+                            "The content did not have the expected RedBin field, assuming invalid premises or address");
+
+                    errDetail = ThingStatusDetail.CONFIGURATION_ERROR;
+                    errMsg = "The premises or address is not valid or has rubbish collection available.";
+                    return false;
+                }
+
+                redbin = jsonObject.get("RedBin").getAsString();
+                yellowbin = jsonObject.get("YellowBin").getAsString();
+
+                day = LocalDateTime.parse(redbin).getDayOfWeek().toString();
+
+                logger.trace("Got Day {} Red Date {} Yellow Date {}", day, redbin, yellowbin);
+
+                errDetail = ThingStatusDetail.NONE;
+
+                return true;
+            } else {
+                logger.debug("Data fetch failed, got HTTP Code {}", response.getStatus());
                 return false;
             }
-
-            redbin = jsonObject.get("RedBin").getAsString();
-            yellowbin = jsonObject.get("YellowBin").getAsString();
-
-            day = LocalDateTime.parse(redbin).getDayOfWeek().toString();
-
-            logger.trace("Got Day {} Red Date {} Yellow Date {}", day, redbin, yellowbin);
-
-            errDetail = ThingStatusDetail.NONE;
-
-            return true;
         } catch (UnsupportedEncodingException ue) {
+            errDetail = ThingStatusDetail.CONFIGURATION_ERROR;
+            errMsg = "Error with encoding url";
             return false;
         } catch (TimeoutException to) {
             return false;
@@ -109,7 +118,7 @@ public class API {
         return errMsg;
     }
 
-    public @Nullable  String getDay() {
+    public @Nullable String getDay() {
         return day;
     }
 

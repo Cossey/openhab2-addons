@@ -31,6 +31,6 @@ public class HamiltonRubbishCollectionBindingConstants {
 
     // List of all Channel ids
     public static final String CHANNEL_DAY = "day";
-    public static final String CHANNEL_BIN_RED = "yellowbin";
-    public static final String CHANNEL_BIN_YELLOW = "redbin";
+    public static final String CHANNEL_BIN_RED = "redbin";
+    public static final String CHANNEL_BIN_YELLOW = "yellowbin";
 }

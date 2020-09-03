@@ -45,56 +45,65 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
     private final HttpClient httpClient;
     private @Nullable API api;
 
+    private static final int DELAY_NETWORKERROR = 3;
+    private static final int DELAY_UPDATE = 480;
+
     private @Nullable HamiltonRubbishCollectionConfiguration config;
 
     private @Nullable ScheduledFuture<?> refreshScheduler;
-    private @Nullable ScheduledFuture<?> offlineScheduler;
 
     public HamiltonRubbishCollectionHandler(Thing thing, HttpClient httpClient) {
         super(thing);
 
-
         this.httpClient = httpClient;
     }
 
-    private void start() {
-        refreshScheduler = scheduler.scheduleWithFixedDelay (() -> {
+    private void startUpdate(int delay) {
+        logger.debug("Start refresh scheduler");
+        refreshScheduler = scheduler.scheduleWithFixedDelay(() -> {
             update();
-        }, 0, 12, TimeUnit.HOURS);
+        }, delay, DELAY_UPDATE, TimeUnit.MINUTES);
     }
 
-    private void stop() {
+    private void stopUpdate(boolean networkFail) {
         if (refreshScheduler != null) {
             refreshScheduler.cancel(true);
             refreshScheduler = null;
         }
+        if (networkFail) {
+            logger.debug("Network failure wait {} minutes and try again", DELAY_NETWORKERROR);
+            startUpdate(DELAY_NETWORKERROR);
+        }
     }
 
     private void update() {
+        logger.debug("Refreshing data");
         if (api.update()) {
+            updateStatus(ThingStatus.ONLINE);
+
             updateState(CHANNEL_DAY, new StringType(api.getDay()));
             updateState(CHANNEL_BIN_RED, new DateTimeType(api.getRedBin()));
             updateState(CHANNEL_BIN_YELLOW, new DateTimeType(api.getYellowBin()));
         } else {
             if (api.getErrorDetail() != ThingStatusDetail.NONE) {
                 updateStatus(ThingStatus.OFFLINE, api.getErrorDetail(), api.getErrorMessage());
-                stop();
+                stopUpdate(false);
+            } else {
+                stopUpdate(true);
             }
         }
     }
 
     @Override
     public void initialize() {
-        // logger.debug("Start initializing!");
+        logger.debug("Start initializing");
         config = getConfigAs(HamiltonRubbishCollectionConfiguration.class);
 
         api = new API(httpClient, config.address);
-        // set the thing status to UNKNOWN temporarily and let the background task decide for the real status.
-        // the framework is then able to reuse the resources from the thing handler initialization.
-        // we set this upfront to reliably check status updates in unit tests.
-        updateStatus(ThingStatus.ONLINE);
 
-        start();
+        updateStatus(ThingStatus.UNKNOWN);
+
+        startUpdate(0);
     }
 
     @Override
