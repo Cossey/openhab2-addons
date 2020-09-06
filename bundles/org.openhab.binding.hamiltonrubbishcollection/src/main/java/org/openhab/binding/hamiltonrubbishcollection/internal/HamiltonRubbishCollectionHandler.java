@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.hamiltonrubbishcollection.internal;
 
+import java.time.ZonedDateTime;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -66,12 +67,13 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
     }
 
     private void stopUpdate(boolean networkFail) {
+        logger.trace("Stopping Update Scheduler");
         if (refreshScheduler != null) {
             refreshScheduler.cancel(true);
             refreshScheduler = null;
         }
         if (networkFail) {
-            logger.debug("Network failure wait {} minutes and try again", DELAY_NETWORKERROR);
+            logger.debug("Stopped due to Network failure. Wait {} minutes and try again", DELAY_NETWORKERROR);
             startUpdate(DELAY_NETWORKERROR);
         }
     }
@@ -82,8 +84,16 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
             updateStatus(ThingStatus.ONLINE);
 
             updateState(CHANNEL_DAY, new StringType(api.getDay()));
-            updateState(CHANNEL_BIN_RED, new DateTimeType(api.getRedBin()));
-            updateState(CHANNEL_BIN_YELLOW, new DateTimeType(api.getYellowBin()));
+
+            if (api.getRedBin() != null) {
+                ZonedDateTime redBin = api.getRedBin();
+                updateState(CHANNEL_BIN_RED, new DateTimeType(redBin));
+            }
+
+            if (api.getYellowBin() != null) {
+                ZonedDateTime yellowBin = api.getYellowBin();
+                updateState(CHANNEL_BIN_YELLOW, new DateTimeType(yellowBin));
+            }
         } else {
             if (api.getErrorDetail() != ThingStatusDetail.NONE) {
                 updateStatus(ThingStatus.OFFLINE, api.getErrorDetail(), api.getErrorMessage());
@@ -104,6 +114,11 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
         updateStatus(ThingStatus.UNKNOWN);
 
         startUpdate(0);
+    }
+
+    @Override
+    public void dispose() {
+        stopUpdate(false);
     }
 
     @Override

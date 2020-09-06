@@ -15,7 +15,7 @@ package org.openhab.binding.hamiltonrubbishcollection.internal;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -50,8 +50,8 @@ public class API {
     }
 
     private @Nullable String day;
-    private String redbin = "";
-    private String yellowbin = "";
+    private @Nullable ZonedDateTime redbin;
+    private @Nullable ZonedDateTime yellowbin;
     private @Nullable String errMsg = "";
     private ThingStatusDetail errDetail = ThingStatusDetail.NONE;
 
@@ -84,13 +84,19 @@ public class API {
                     errMsg = "The premises or address is not valid or has rubbish collection available.";
                     return false;
                 }
+                
+                redbin = ZonedDateTime.parse(jsonObject.get("RedBin").getAsString() + "+12:00");
+                yellowbin = ZonedDateTime.parse(jsonObject.get("YellowBin").getAsString() + "+12:00");
 
-                redbin = jsonObject.get("RedBin").getAsString();
-                yellowbin = jsonObject.get("YellowBin").getAsString();
+                if (redbin.compareTo(yellowbin) < 0) {
+                    day = redbin.getDayOfWeek().toString();
+                    logger.trace("Got day of week from RedBin Date");
+                } else {
+                    day = yellowbin.getDayOfWeek().toString();
+                    logger.trace("Got day of week from YellowBin Date");
+                }
 
-                day = LocalDateTime.parse(redbin).getDayOfWeek().toString();
-
-                logger.trace("Got Day {} Red Date {} Yellow Date {}", day, redbin, yellowbin);
+                logger.trace("Day {} Red Date {} Yellow Date {}", day, redbin, yellowbin);
 
                 errDetail = ThingStatusDetail.NONE;
 
@@ -122,11 +128,11 @@ public class API {
         return day;
     }
 
-    public String getYellowBin() {
+    public @Nullable ZonedDateTime getYellowBin() {
         return yellowbin;
     }
 
-    public String getRedBin() {
+    public @Nullable ZonedDateTime getRedBin() {
         return redbin;
     }
 }
