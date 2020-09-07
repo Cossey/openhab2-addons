@@ -17,6 +17,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.google.gson.JsonElement;
@@ -44,6 +45,8 @@ public class API {
     private final HttpClient httpClient;
     private final String address;
 
+    private static final int REQUEST_TIMEOUT = 10;
+
     public API(HttpClient httpClient, String address) {
         this.httpClient = httpClient;
         this.address = address;
@@ -60,9 +63,9 @@ public class API {
             final String url = "https://hccfightthelandfill.azure-api.net/get_Collection_Dates?address_string="
                     + URLEncoder.encode(address, StandardCharsets.UTF_8.toString());
 
-            logger.debug("Fetching data from API at {}", url);
+            logger.debug("Fetching data from API at {} with timeout {}", url, REQUEST_TIMEOUT);
 
-            ContentResponse response = httpClient.GET(url);
+            ContentResponse response = httpClient.newRequest(url).timeout(REQUEST_TIMEOUT, TimeUnit.SECONDS).send();
 
             if (response.getStatus() == 200) {
                 String content = response.getContentAsString().trim();
