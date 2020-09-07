@@ -19,7 +19,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Arrays;
 
-import org.apache.commons.io.IOUtils;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.util.HexUtils;
 import org.slf4j.Logger;
@@ -186,7 +185,11 @@ public class OnkyoAlbumArt {
             try {
                 return IOUtils.toByteArray(inputStream);
             } finally {
-                IOUtils.closeQuietly(inputStream);
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    logger.debug("Error while closing the inputStream stream: {}", e.getMessage());
+                }
             }
         } catch (MalformedURLException e) {
             logger.warn("Album Art download failed from url '{}', reason {}", albumArtUrl, e.getMessage());

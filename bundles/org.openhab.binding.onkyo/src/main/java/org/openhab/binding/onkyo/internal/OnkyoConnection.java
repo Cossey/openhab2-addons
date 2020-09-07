@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.commons.io.IOUtils;
 import org.eclipse.smarthome.core.util.HexUtils;
 import org.openhab.binding.onkyo.internal.eiscp.EiscpCommand;
 import org.openhab.binding.onkyo.internal.eiscp.EiscpException;
@@ -222,17 +221,29 @@ public class OnkyoConnection {
                 logger.debug("closed connection tester!");
             }
             if (inStream != null) {
-                IOUtils.closeQuietly(inStream);
+                try {
+                    inStream.close();
+                } catch (IOException e) {
+                    logger.debug("Error while closing the input stream: {}", e.getMessage());
+                }
                 inStream = null;
                 logger.debug("closed input stream!");
             }
             if (outStream != null) {
-                IOUtils.closeQuietly(outStream);
+                try {
+                    outStream.close();
+                } catch (IOException e) {
+                    logger.debug("Error while closing the output stream: {}", e.getMessage());
+                }
                 outStream = null;
                 logger.debug("closed output stream!");
             }
             if (eiscpSocket != null) {
-                IOUtils.closeQuietly(eiscpSocket);
+                try {
+                    eiscpSocket.close();
+                } catch (IOException e) {
+                    logger.debug("Error while closing the socket stream: {}", e.getMessage());
+                }
                 eiscpSocket = null;
                 logger.debug("closed socket!");
             }
