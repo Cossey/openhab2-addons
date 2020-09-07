@@ -12,13 +12,15 @@
  */
 package org.openhab.binding.hamiltonrubbishcollection.internal;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+
 /**
  * The {@link HamiltonRubbishCollectionConfiguration} class contains fields
  * mapping thing configuration parameters.
  *
  * @author Stewart Cossey - Initial contribution
  */
-
+@NonNullByDefault
 public class HamiltonRubbishCollectionConfiguration {
-    public String address;
+    public String address = "";
 }

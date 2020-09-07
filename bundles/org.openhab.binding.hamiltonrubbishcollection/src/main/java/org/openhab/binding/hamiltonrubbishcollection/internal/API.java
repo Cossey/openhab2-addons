@@ -79,7 +79,9 @@ public class API {
                 JsonObject jsonObject = new JsonParser().parse(contentfixed.toString()).getAsJsonObject();
 
                 JsonElement redbinobj = jsonObject.get("RedBin");
-                if (redbinobj == null) {
+                JsonElement yellowbinobj = jsonObject.get("YellowBin");
+
+                if (redbinobj == null || yellowbinobj == null) {
                     logger.debug(
                             "The content did not have the expected RedBin field, assuming invalid premises or address");
 
@@ -88,20 +90,23 @@ public class API {
                     return false;
                 }
                 
-                redbin = ZonedDateTime.parse(jsonObject.get("RedBin").getAsString() + "+12:00");
-                yellowbin = ZonedDateTime.parse(jsonObject.get("YellowBin").getAsString() + "+12:00");
+                ZonedDateTime localRedBin = ZonedDateTime.parse(redbinobj.getAsString() + "+12:00");
+                ZonedDateTime localYellowBin = ZonedDateTime.parse(yellowbinobj.getAsString() + "+12:00");
 
-                if (redbin.compareTo(yellowbin) < 0) {
-                    day = redbin.getDayOfWeek().toString();
+                if (localRedBin.compareTo(localYellowBin) < 0) {
+                    day = localRedBin.getDayOfWeek().toString();
                     logger.trace("Got day of week from RedBin Date");
                 } else {
-                    day = yellowbin.getDayOfWeek().toString();
+                    day = localYellowBin.getDayOfWeek().toString();
                     logger.trace("Got day of week from YellowBin Date");
                 }
 
-                logger.trace("Day {} Red Date {} Yellow Date {}", day, redbin, yellowbin);
+                logger.trace("Day {} Red Date {} Yellow Date {}", day, localRedBin, localYellowBin);
 
                 errDetail = ThingStatusDetail.NONE;
+
+                redbin = localRedBin;
+                yellowbin = localYellowBin;
 
                 return true;
             } else {

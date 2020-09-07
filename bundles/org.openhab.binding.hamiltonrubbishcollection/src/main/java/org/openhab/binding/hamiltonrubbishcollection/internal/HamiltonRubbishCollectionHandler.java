@@ -49,8 +49,6 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
     private static final int DELAY_NETWORKERROR = 3;
     private static final int DELAY_UPDATE = 480;
 
-    private @Nullable HamiltonRubbishCollectionConfiguration config;
-
     private @Nullable ScheduledFuture<?> refreshScheduler;
 
     public HamiltonRubbishCollectionHandler(Thing thing, HttpClient httpClient) {
@@ -61,15 +59,14 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
 
     private void startUpdate(int delay) {
         logger.debug("Start refresh scheduler");
-        refreshScheduler = scheduler.scheduleWithFixedDelay(() -> {
-            update();
-        }, delay, DELAY_UPDATE, TimeUnit.MINUTES);
+        refreshScheduler = scheduler.scheduleWithFixedDelay(this::update, delay, DELAY_UPDATE, TimeUnit.MINUTES);
     }
 
     private void stopUpdate(boolean networkFail) {
+        final ScheduledFuture<?> localRefreshScheduler = refreshScheduler;
         logger.trace("Stopping Update Scheduler");
-        if (refreshScheduler != null) {
-            refreshScheduler.cancel(true);
+        if (localRefreshScheduler != null) {
+            localRefreshScheduler.cancel(true);
             refreshScheduler = null;
         }
         if (networkFail) {
@@ -80,38 +77,43 @@ public class HamiltonRubbishCollectionHandler extends BaseThingHandler {
 
     private void update() {
         logger.debug("Refreshing data");
-        if (api.update()) {
-            updateStatus(ThingStatus.ONLINE);
+        final API localApi = api;
+        if (localApi != null) {
+            if (localApi.update()) {
+                updateStatus(ThingStatus.ONLINE);
 
-            updateState(CHANNEL_DAY, new StringType(api.getDay()));
+                updateState(CHANNEL_DAY, new StringType(localApi.getDay()));
 
-            if (api.getRedBin() != null) {
-                ZonedDateTime redBin = api.getRedBin();
-                updateState(CHANNEL_BIN_RED, new DateTimeType(redBin));
-            }
+                if (localApi.getRedBin() != null) {
+                    ZonedDateTime redBin = ZonedDateTime.from(localApi.getRedBin());
+                    updateState(CHANNEL_BIN_RED, new DateTimeType(redBin));
+                }
 
-            if (api.getYellowBin() != null) {
-                ZonedDateTime yellowBin = api.getYellowBin();
-                updateState(CHANNEL_BIN_YELLOW, new DateTimeType(yellowBin));
+                if (localApi.getYellowBin() != null) {
+                    ZonedDateTime yellowBin = ZonedDateTime.from(localApi.getYellowBin());
+                    updateState(CHANNEL_BIN_YELLOW, new DateTimeType(yellowBin));
+                }
+            } else {
+                if (localApi.getErrorDetail() != ThingStatusDetail.NONE) {
+                    updateStatus(ThingStatus.OFFLINE, localApi.getErrorDetail(), localApi.getErrorMessage());
+                    stopUpdate(false);
+                } else {
+                    stopUpdate(true);
+                }
             }
         } else {
-            if (api.getErrorDetail() != ThingStatusDetail.NONE) {
-                updateStatus(ThingStatus.OFFLINE, api.getErrorDetail(), api.getErrorMessage());
-                stopUpdate(false);
-            } else {
-                stopUpdate(true);
-            }
+            logger.error("Local API is null, cannot update.");
         }
     }
 
     @Override
     public void initialize() {
         logger.debug("Start initializing");
-        config = getConfigAs(HamiltonRubbishCollectionConfiguration.class);
-
-        api = new API(httpClient, config.address);
+        final HamiltonRubbishCollectionConfiguration config = getConfigAs(HamiltonRubbishCollectionConfiguration.class);
 
         updateStatus(ThingStatus.UNKNOWN);
+
+        api = new API(httpClient, config.address);
 
         startUpdate(0);
     }
